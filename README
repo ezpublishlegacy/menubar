@@ -5,3 +5,8 @@
 = Description
 --------------------------------------------------------------------------------------------
 The menubar extension provides an operator that makes the generation and creation of menubars quick and simple.
+
+= Dependencies
+--------------------------------------------------------------------------------------------
+- frameworkutilities
+- moduletools
