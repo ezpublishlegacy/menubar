@@ -1,0 +1,113 @@
+/********************************************************************************
+* Core Menubar Design Styles
+*
+* NOTE: DO NOT INCLUDE THIS FILE IN YOUR STYLESHEET LIST
+* The following rules should be place as part of the core styles and prior to menubar.css
+*
+* Table of Contents
+	menu core
+	navigation
+********************************************************************************/
+
+/********************************************************************************
+  menu core
+********************************************************************************/
+.menu{
+	line-height:1.5;
+	list-style-type:none;
+	margin:0;
+	padding:0;
+}
+.menu li{
+	list-style-type:none;
+	margin:0;
+}
+.menu a{
+	display:block;
+	text-decoration:none;
+}
+.menu.delimiter a{
+	text-decoration:underline;
+}
+.menu img{
+	vertical-align:middle;
+}
+.menu .menu{
+	display:none;
+	text-align:left;
+}
+
+/*====== horizontal ======*/
+ul.horizontal{
+	clear:left;
+	margin-bottom:10px;
+	position:relative;
+}
+ul.horizontal li{
+	display:inline-block;
+	position:relative;
+	white-space:nowrap;
+}
+ul.horizontal a,ul.horizontal .inactive{
+	margin-right:4px;
+	padding:0 6px 2px
+}
+ul.horizontal .menu{
+	position:absolute;
+	z-index: 10000;
+}
+ul.horizontal.delimiter a{
+	display:inline-block;
+}
+ul.horizontal > li.delimiter{
+	border-right:1px solid #000000;
+}
+
+/*====== vertical ======*/
+ul.vertical li{
+	display:list-item !important;
+	position:relative;
+	white-space:nowrap;
+}
+ul.vertical .menu{
+	position:absolute;
+	z-index: 10000;
+}
+ul.vertical > li.delimiter{
+	border-bottom:1px solid #000000;
+}
+
+/*====== primary ======*/
+.primary{
+	text-align:center;
+}
+.primary .menu{
+	margin:0 auto;
+}
+
+/*====== special items ======*/
+.menu .menu-root a{
+	background-color:#cccccc;
+}
+.menu .current > a{
+	background-color:#0000ff;
+	color:#cccccc;
+}
+.menu .current-parent > a{
+	background-color:#c0c0c0;
+	color:#000000;
+}
+
+.menu-display{
+	display:none;
+	position:absolute;
+	z-index: 10000;
+}
+
+/********************************************************************************
+  navigation
+********************************************************************************/
+nav h2{
+	font-size:18px;
+	margin:0 0 6px;
+}
