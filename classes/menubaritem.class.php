@@ -169,7 +169,9 @@ class MenubarItem extends PersistentObject
 		eZDebug::accumulatorStart('execute_conditional', 'menubar_total', 'Execute Conditional Menubar Item');
 		switch($condition[0]){
 			case 'fetch':{
-				$Result = ModuleTools::ModuleFunction($condition[1], $condition[2], isset($condition[3]) ? $condition[3] : false);
+				$ModuleFunction = new eZModuleFunctionInfo($condition[1]);
+				$ModuleFunction->loadDefinition();
+				$Result = $ModuleFunction->execute($condition[2], isset($condition[3]) ? $condition[3] : false);
 				break;
 			}
 			case 'operator':{
@@ -202,7 +204,7 @@ class MenubarItem extends PersistentObject
 			return $GLOBALS[self::GLOBALS_KEY];
 		}
 		if(SiteUtils::isContentPage()){
-			$ModuleData = ModuleTools::CurrentModuleParameters();
+			$ModuleData = $GLOBALS['eZRequestedModuleParams'];
 			$ContentNode = eZContentObjectTreeNode::fetch($ModuleData['parameters']['NodeID']);
 			return $GLOBALS[self::GLOBALS_KEY] = array(
 				'NodeID'=>$ModuleData['parameters']['NodeID'],
