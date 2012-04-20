@@ -175,6 +175,9 @@ class Menubar extends PersistentObject
 		}
 		if($parameters['include']){
 			$Insertions = 0;
+			if(!$ItemCount){
+				$object->Items = array();
+			}
 			foreach($parameters['include'] as $Item){
 				$MenuItem = MenubarItem::createFromParameters($Item);
 				if(isset($Item['placement'])){
