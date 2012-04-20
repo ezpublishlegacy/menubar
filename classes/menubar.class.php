@@ -164,7 +164,7 @@ class Menubar extends PersistentObject
 			return $NodeList;
 		}
 		eZDebug::accumulatorStop('generate_tree');
-		return false;
+		return array();
 	}
 
 	protected static function processMenuIncludes($object, $parameters){
@@ -175,9 +175,6 @@ class Menubar extends PersistentObject
 		}
 		if($parameters['include']){
 			$Insertions = 0;
-			if(!$ItemCount){
-				$object->Items = array();
-			}
 			foreach($parameters['include'] as $Item){
 				$MenuItem = MenubarItem::createFromParameters($Item);
 				if(isset($Item['placement'])){
