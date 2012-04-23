@@ -77,6 +77,7 @@ class MenubarOperator
 				'show_header'=>false,
 				'identifier_list'=>'LeftIdentifierList',
 				'fetch_parameters'=>false,
+				'use_menu_display'=>false,
 				'use_parent'=>true,
 				'include'=>array(),
 				'append'=>array(),

@@ -70,6 +70,7 @@ class Menubar extends PersistentObject
 			$ItemParameters['MenuDepth'] = $parameters['menu_depth'];
 			$ItemParameters['RootNodeID'] = $parameters['root_node_id'];
 			$ItemParameters['Delimiter'] = $parameters['delimiter'];
+			$ItemParameters['useMenuDisplay'] = $parameters['use_menu_display'];
 			if($this->RootNode = eZContentObjectTreeNode::fetch($parameters['root_node_id'])){
 				$FetchParameters['ClassFilterArray'] = eZINI::instance('menu.ini')->variable('MenuContentSettings', $parameters['identifier_list']);
 				$FetchParameters['SortBy'] = $this->RootNode->sortArray();
@@ -156,6 +157,10 @@ class Menubar extends PersistentObject
 					$NodeList[$Key]->Delimiter = $parameters->ItemParameters['Delimiter'];
 				}
 				if($Node->childrenCount() && $parameters->ItemParameters['MenuDepth'] > $current_depth){
+					if($parameters->ItemParameters['useMenuDisplay']){
+						MenubarItem::fetchMenuDisplay($NodeList[$Key]);
+						continue;
+					}
 					$parameters->ItemParameters['RootNodeID'] = $Node->NodeID;
 					$NodeList[$Key]->setMenu(new self(self::generateMenubarTree($parameters, $serialize, $current_depth+1)));
 				}

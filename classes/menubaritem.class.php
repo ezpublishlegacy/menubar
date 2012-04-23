@@ -5,6 +5,7 @@ class MenubarItem extends PersistentObject
 
 	public $Content;
 	public $hasMenu;
+	public $hasMenuDisplay;
 	public $Link;
 	public $Delimiter;
 	public $isExternal = false;
@@ -12,7 +13,10 @@ class MenubarItem extends PersistentObject
 	protected $Class;
 	protected $Node = false;
 	protected $Menu = false;
+	protected $MenuDisplay = false;
 	protected $Settings = false;
+
+	private static $MenuDisplaySettings = false;
 
 	const GLOBALS_KEY = 'MenubarCurrentNodeData';
 
@@ -59,6 +63,13 @@ class MenubarItem extends PersistentObject
 		return false;
 	}
 
+	function getMenuDisplay(){
+		if($this->hasMenuDisplay){
+			return $this->MenuDisplay;
+		}
+		return false;
+	}
+
 	function getNode(){
 		if($this->Node){
 			return unserialize($this->Node);
@@ -77,6 +88,11 @@ class MenubarItem extends PersistentObject
 	function setMenu($menu){
 		$this->Menu = $menu;
 		$this->hasMenu = true;
+	}
+
+	function setMenuDisplay($items){
+		$this->MenuDisplay = $items;
+		$this->hasMenuDisplay = true;
 	}
 
 	static function createFromContentObjectTreeNode($object, $isRootItem=false){
@@ -149,6 +165,12 @@ class MenubarItem extends PersistentObject
 					'default'=>false,
 					'required'=>true
 				),
+				'has_menu_display'=>array(
+					'name'=>'hasMenuDisplay',
+					'datatype'=>'boolean',
+					'default'=>false,
+					'required'=>true
+				),
 				'is_external'=>array(
 					'name'=>'isExternal',
 					'datatype'=>'boolean',
@@ -159,6 +181,7 @@ class MenubarItem extends PersistentObject
 			'function_attributes'=>array(
 				'class'=>'compileClassList',
 				'menu'=>'getMenu',
+				'menu_display'=>'getMenuDisplay',
 				'has_link'=>'hasLink',
 				'node'=>'getNode'
 			)
@@ -197,6 +220,24 @@ class MenubarItem extends PersistentObject
 		eZDebug::accumulatorStop('execute_conditional');
 		eZDebug::writeError('The result of the executed condition is not a boolean value.', 'Invalid Condition Result ['.__METHOD__.']');
 		return null;
+	}
+
+	static function fetchMenuDisplay($item, $return=false){
+		if(!self::$MenuDisplaySettings){
+			self::$MenuDisplaySettings = eZINI::instance('menubar.ini')->group('MenuDisplay');
+		}
+		$MenuDisplayItems = unserialize($item->Node)->subTree(array(
+			'ClassFilterType'=>'include',
+			'ClassFilterArray'=>array(self::$MenuDisplaySettings['ClassIdentifier'])
+		));
+		if($Count = count($MenuDisplayItems)){
+			if($Count > self::$MenuDisplaySettings['AllowedPerItem']){
+				$MenuDisplayItems = array_slice($MenuDisplayItems, 0, self::$MenuDisplaySettings['AllowedPerItem']);
+			}
+			$item->setMenuDisplay($MenuDisplayItems);
+			return true;
+		}
+		return false;
 	}
 
 	static function getCurrentNodeData(){
