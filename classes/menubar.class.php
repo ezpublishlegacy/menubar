@@ -17,7 +17,7 @@ class Menubar extends PersistentObject
 		// set object Orientation property
 		$this->Orientation = $orientation;
 		if(!$this->Orientation){
-			$this->Orientation = MenubarOperator::getOperatorDefaultParameter('menubar','orientation');
+			$this->Orientation = MenubarOperator::getOperatorDefaultParameter('menubar', 'orientation');
 		}
 		// set object hasItems and Items properties as needed
 		$this->hasItems = false;

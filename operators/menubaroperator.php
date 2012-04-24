@@ -5,7 +5,7 @@ class MenubarOperator
 	var $Operators;
 
 	function __construct(){
-		$this->Operators = array('menubar');
+		$this->Operators = array('menubar', 'menubar_items');
 	}
 
 	function &operatorList(){
@@ -20,12 +20,24 @@ class MenubarOperator
 		return array(
 			'menubar'=>array(
 				'parameters'=>array('type'=>'mixed', 'required'=>true, 'default'=>false)
+			),
+			'menubar_items'=>array(
+				'parameters'=>array('type'=>'mixed', 'required'=>false, 'default'=>false)
 			)
 		);
 	}
 
 	function modify(&$tpl, &$operatorName, &$operatorParameters, &$rootNamespace, &$currentNamespace, &$operatorValue, &$namedParameters, &$placement){
 		switch($operatorName){
+			case 'menubar_items':{
+				$MenubarItems=false;
+				foreach(current($operatorValue->content()) as $Key=>$Value){
+					$ObjectNode=eZContentObjectTreeNode::fetch($Value['node_id']);
+					$MenubarItems[]=MenubarItem::convertContentObjectTreeNode($ObjectNode, false);
+				}
+				$operatorValue=$MenubarItems;
+				return true;
+			}
 			default:{
 				eZDebug::createAccumulatorGroup('menubar_total', 'Menubar Operator Total');
 				return self::menubar($tpl, $operatorValue, $namedParameters['parameters']);

@@ -86,8 +86,10 @@ class MenubarItem extends PersistentObject
 	}
 
 	function setMenu($menu){
-		$this->Menu = $menu;
-		$this->hasMenu = true;
+		if($menu){
+			$this->Menu = $menu;
+			$this->hasMenu = true;
+		}
 	}
 
 	function setMenuDisplay($items){
@@ -95,8 +97,22 @@ class MenubarItem extends PersistentObject
 		$this->hasMenuDisplay = true;
 	}
 
-	static function createFromContentObjectTreeNode($object, $isRootItem=false){
-		eZDebug::accumulatorStart('create_from_treenode', 'menubar_total', 'Create MenubarItem From ContentObjectTreeNode');
+	static function convertContentObjectTreeNode($object, $asObject=true){
+		$Item=self::createFromContentObjectTreeNode($object, false, true);
+		if(!$asObject){
+			return array(
+				'content'=>$Item->Content,
+				'link'=>$Item->Link,
+				'menu'=>$Item->Menu
+			);
+		}
+		return $Item;
+	}
+
+	static function createFromContentObjectTreeNode($object, $isRootItem=false, $quiet=false){
+		if(!$quiet){
+			eZDebug::accumulatorStart('create_from_treenode', 'menubar_total', 'Create MenubarItem From ContentObjectTreeNode');
+		}
 		$Content = htmlentities($object->Name, ENT_COMPAT | 'ENT_HTML5' | 'ENT_HTML401', "UTF-8");
 		$isExternal = false;
 		if($object->ClassIdentifier=='link'){
@@ -112,7 +128,9 @@ class MenubarItem extends PersistentObject
 			}
 		}
 		$Instance = new self($Content, $isExternal, $object, $isRootItem);
-		eZDebug::accumulatorStop('create_from_treenode');
+		if(!$quiet){
+			eZDebug::accumulatorStop('create_from_treenode');
+		}
 		return $Instance;
 	}
 
@@ -134,6 +152,11 @@ class MenubarItem extends PersistentObject
 			foreach(explode(' ', $parameters['class']) as $class){
 				$Instance->addClass($class);
 			}
+		}
+		if(isset($parameters['menu']) && is_array($parameters['menu'])){
+			$Instance->setMenu(Menubar::initialize(array(
+				'items'=>$parameters['menu']
+			)));
 		}
 		return $Instance;
 	}
