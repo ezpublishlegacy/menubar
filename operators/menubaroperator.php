@@ -5,7 +5,7 @@ class MenubarOperator
 	var $Operators;
 
 	function __construct(){
-		$this->Operators = array('menubar', 'menubar_items', 'in_menubar');
+		$this->Operators = array('menubar', 'menubar_items', 'in_menubar', 'display_menubar');
 	}
 
 	function &operatorList(){
@@ -32,6 +32,11 @@ class MenubarOperator
 
 	function modify(&$tpl, &$operatorName, &$operatorParameters, &$rootNamespace, &$currentNamespace, &$operatorValue, &$namedParameters, &$placement){
 		switch($operatorName){
+			case 'display_menubar':{
+				$Menubar = $operatorValue;
+				$operatorValue = '';
+				return self::menubar($tpl, $operatorValue, $Menubar);
+			}
 			case 'in_menubar':{
 				if(is_object($operatorValue) && get_class($operatorValue)=='eZContentObjectTreeNode'){
 					return self::inMenubar($tpl, $operatorValue, $namedParameters);
@@ -96,8 +101,9 @@ class MenubarOperator
 			eZDebug::accumulatorStop('menubar_total');
 			return true;
 		}
+		$parameters = array_merge(self::operatorDefaults('menubar'), $parameters);
 		if($Menubar = Menubar::initialize($parameters)){
-			$operatorValue = self::displayMenubar($tpl, $Menubar);
+			$operatorValue = $parameters['display'] ? self::displayMenubar($tpl, $Menubar) : $Menubar;
 			eZDebug::accumulatorStop('menubar_total');
 			return true;
 		}
@@ -111,6 +117,7 @@ class MenubarOperator
 				'menubar_id'=>false,
 				'root_node_id'=>eZINI::instance('content.ini')->variable('NodeSettings','RootNode'),
 				'orientation'=>'vertical',
+				'display'=>true,
 				'class'=>false,
 				'include_root_node'=>false,
 				'menu_depth'=>1,

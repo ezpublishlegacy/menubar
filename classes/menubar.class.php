@@ -53,6 +53,10 @@ class Menubar extends PersistentObject
 		return $this->RootNode->ParentNodeID;
 	}
 
+	function fetchRootNode(){
+		return $this->RootNode;
+	}
+
 	function getItems(){
 		if($this->hasItems){
 			return $this->Items;
@@ -127,7 +131,8 @@ class Menubar extends PersistentObject
 			'function_attributes'=>array(
 				'class'=>'compileClassList',
 				'items'=>'getItems',
-				'item_count'=>'getItemCount'
+				'item_count'=>'getItemCount',
+				'root_node'=>'fetchRootNode'
 			)
 		);
 	}
@@ -144,7 +149,6 @@ class Menubar extends PersistentObject
 	}
 
 	static function initialize($parameters, $serialize=false){
-		$parameters = array_merge(MenubarOperator::operatorDefaults('menubar'), $parameters);
 		$Menubar = new self($parameters['items'], $parameters['orientation'], $parameters['class']);
 		if($parameters['menubar_id']){
 			$Menubar->MenubarID = $parameters['menubar_id'];
