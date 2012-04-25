@@ -2,8 +2,11 @@
 
 class Menubar extends PersistentObject
 {
-	static $ClassName='menu';
+	static $ClassName = 'menu';
 
+	protected static $MenubarCache = array();
+
+	public $MenubarID;
 	public $Orientation;
 	public $hasItems;
 
@@ -89,6 +92,22 @@ class Menubar extends PersistentObject
 		return false;
 	}
 
+	protected function finalize(){
+		if($this->MenubarID){
+			self::addMenubar($this->MenubarID, $this);
+		}
+		return $this;
+	}
+
+	static function addMenubar($id, $object){
+		if(!self::hasMenubar($id)){
+			self::$MenubarCache[$id] = $object;
+			return true;
+		}
+		eZDebug::writeWarning("Unable to add menubar to the cache due to the menubar id \"$id\" already exists.", __METHOD__.' - Invalid Menubar ID');
+		return false;
+	}
+
 	static function definition(){
 		return array(
 			'fields'=>array(
@@ -113,9 +132,23 @@ class Menubar extends PersistentObject
 		);
 	}
 
+	static function getMenubar($id){
+		if(self::hasMenubar($id)){
+			return self::$MenubarCache[$id];
+		}
+		return false;
+	}
+
+	static function hasMenubar($id){
+		return array_key_exists($id, self::$MenubarCache);
+	}
+
 	static function initialize($parameters, $serialize=false){
 		$parameters = array_merge(MenubarOperator::operatorDefaults('menubar'), $parameters);
 		$Menubar = new self($parameters['items'], $parameters['orientation'], $parameters['class']);
+		if($parameters['menubar_id']){
+			$Menubar->MenubarID = $parameters['menubar_id'];
+		}
 		$Menubar->Delimiter = $parameters['delimiter'];
 		if($Menubar->hasItems){
 			$ItemCount = $Menubar->getItemCount()-1;
@@ -125,7 +158,7 @@ class Menubar extends PersistentObject
 					$Menubar->Items[$Key]->Delimiter = $Menubar->Delimiter;
 				}
 			}
-			return $Menubar;
+			return $Menubar->finalize();
 		}
 		if($Menubar->compileContentParameters($parameters)){
 			$Menubar->Items = self::generateMenubarTree($Menubar->ContentParameters, $serialize);
@@ -142,7 +175,7 @@ class Menubar extends PersistentObject
 					'use_parent'=>false,
 				)));
 			}
-			return $Menubar;
+			return $Menubar->finalize();
 		}
 		return false;
 	}

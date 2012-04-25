@@ -5,7 +5,7 @@ class MenubarOperator
 	var $Operators;
 
 	function __construct(){
-		$this->Operators = array('menubar', 'menubar_items');
+		$this->Operators = array('menubar', 'menubar_items', 'in_menubar');
 	}
 
 	function &operatorList(){
@@ -23,12 +23,22 @@ class MenubarOperator
 			),
 			'menubar_items'=>array(
 				'parameters'=>array('type'=>'mixed', 'required'=>false, 'default'=>false)
+			),
+			'in_menubar'=>array(
+				'menubar_id'=>array('type'=>'string', 'required'=>true, 'default'=>false)
 			)
 		);
 	}
 
 	function modify(&$tpl, &$operatorName, &$operatorParameters, &$rootNamespace, &$currentNamespace, &$operatorValue, &$namedParameters, &$placement){
 		switch($operatorName){
+			case 'in_menubar':{
+				if(is_object($operatorValue) && get_class($operatorValue)=='eZContentObjectTreeNode'){
+					return self::inMenubar($tpl, $operatorValue, $namedParameters);
+				}
+				eZDebug::writeError('The operator value is not a content object tree node.', __METHOD__);
+				break;
+			}
 			case 'menubar_items':{
 				$MenubarItems=false;
 				foreach(current($operatorValue->content()) as $Key=>$Value){
@@ -62,6 +72,23 @@ class MenubarOperator
 		return isset($Defaults[$parameterName]) ? $Defaults[$parameterName] : null;
 	}
 
+	static function inMenubar(&$tpl, &$operatorValue, $parameters){
+		$Exists=false;
+		if(Menubar::hasMenubar($parameters['menubar_id'])){
+			$RemoteID = $operatorValue->remoteID();
+			$Menubar = Menubar::getMenubar($parameters['menubar_id']);
+			foreach($Menubar->getItems() as $Item){
+				if($Node = $Item->getNode()){
+					if($Exists = ($RemoteID==$Node->remoteID())){
+						break;
+					}
+				}
+			}
+		}
+		$operatorValue = $Exists;
+		return true;
+	}
+
 	static function menubar(&$tpl, &$operatorValue, $parameters){
 		eZDebug::accumulatorStart('menubar_total');
 		if(is_object($parameters) && get_class($parameters)=='Menubar'){
@@ -81,6 +108,7 @@ class MenubarOperator
 	static function operatorDefaults($operatorName=false){
 		$Defaults = array(
 			'menubar'=>array(
+				'menubar_id'=>false,
 				'root_node_id'=>eZINI::instance('content.ini')->variable('NodeSettings','RootNode'),
 				'orientation'=>'vertical',
 				'class'=>false,
