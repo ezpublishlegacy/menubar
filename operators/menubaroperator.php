@@ -59,7 +59,7 @@ class MenubarOperator
 	static function displayMenubar(&$tpl, $menubar){
 		eZDebug::accumulatorStart('compile_menubar', 'menubar_total', 'Compile Menubar Template');
 		$tpl->setVariable('menubar', $menubar);
-		$result=$tpl->fetch('design:menu/menubar.tpl');
+		$result = $tpl->fetch('design:menu/menubar.tpl');
 		if($tpl->hasVariable('menubar')){
 			$tpl->unsetVariable('menubar');
 		}
@@ -114,7 +114,6 @@ class MenubarOperator
 				'class'=>false,
 				'include_root_node'=>false,
 				'menu_depth'=>1,
-				'show_header'=>false,
 				'identifier_list'=>'LeftIdentifierList',
 				'fetch_parameters'=>false,
 				'use_menu_display'=>false,
