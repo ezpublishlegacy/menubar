@@ -1,217 +1,100 @@
 <?php
 
-class MenubarItem extends PersistentObject
+class MenubarItem extends MenubarItemObject
 {
 
-	public $Content;
-	public $hasMenu;
-	public $hasMenuDisplay;
-	public $Link;
 	public $Delimiter;
-	public $isExternal = false;
 
-	protected $Class;
-	protected $Node = false;
-	protected $Menu = false;
-	protected $MenuDisplay = false;
-	protected $Settings = false;
+	protected $Menu;
 
-	private static $MenuDisplaySettings = false;
-
-	const GLOBALS_KEY = 'MenubarCurrentNodeData';
-
-	function __construct($content, $isExternal=false, $node=false, $isRootItem=false){
-		$this->Content = $content;
-		$this->hasMenu = false;
-		$this->isExternal = $isExternal;
-		if($node){
-			$this->addClass("node_id_$node->NodeID");
-			if($CurrentNodeData = self::getCurrentNodeData()){
-				if($node->NodeID==$CurrentNodeData['NodeID']){
-					$this->addClass('current');
-				}
-				if(!$isRootItem && in_array($node->NodeID, $CurrentNodeData['PathArray'])){
-					$this->addClass('current-parent');
-				}
+	function __construct($options=false){
+		if($options && $this->Options = self::processOptions($options)){
+			if($this->Options['switch']['condition']){
+				$this->Options['inherit'] = self::executeConditional($this->Options['switch']['condition'], $this->Options['switch']['conditional']);
 			}
-			$this->Node = serialize($node);
-			if(!$this->Settings){
-				$this->Settings = eZINI::instance('menubar.ini')->group('MenubarItem');
+			if($this->Options['additional']['menu']){
+				$this->Menu = MenubarOperator::menubar(array(
+					'items' => $this->Options['additional']['menu']
+				));
 			}
-			$LinkHandlerClass = $this->Settings['LinkHandlerList'][$this->Settings['LinkEngine']];
-			eZDebug::accumulatorStart('generate_link', 'menubar_total', "Generate Menubar Item Link [$LinkHandlerClass]");
-			$this->Link = call_user_func(array($LinkHandlerClass, 'process'), $this);
-			eZDebug::accumulatorStop('generate_link');
+			parent::__construct($this->Options['inherit']);
 		}
 	}
 
-	function addClass($class){
-		$this->Class[$class] = $class;
-	}
-
-	function compileClassList(){
-		if($this->Class){
-			return implode(' ', $this->Class);
+	function processContentObjectTreeNode(eZContentObjectTreeNode $object, $options=false){
+		$Result = parent::processContentObjectTreeNode($object);
+		if($options){
+			eZDebug::accumulatorStart('menubar_submenu', 'menubar_total', "Menubar Item Menu Generation");
+			$this->Menu = MenubarOperator::menubar($options, $object);
+			eZDebug::accumulatorStop('menubar_submenu');
 		}
-		return false;
-	}
 
-	function getMenu(){
-		if($this->hasMenu){
-			return $this->Menu;
-		}
-		return false;
-	}
-
-	function getMenuDisplay(){
-		if($this->hasMenuDisplay){
-			return $this->MenuDisplay;
-		}
-		return false;
-	}
-
-	function getNode(){
-		if($this->Node){
-			return unserialize($this->Node);
-		}
-		return false;
-	}
-
-	function hasLink(){
-		return (bool)$this->Link;
-	}
-
-	function removeClass($class){
-		unset($this->Class[$class]);
-	}
-
-	function setMenu($menu){
-		if($menu){
-			$this->Menu = $menu;
-			$this->hasMenu = true;
+		if(in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
+			$this->addClass( ($object->NodeID==Menubar::$Settings['CurrentNode']->NodeID) ? 'current' : 'current-parent');
 		}
 	}
 
-	function setMenuDisplay($items){
-		$this->MenuDisplay = $items;
-		$this->hasMenuDisplay = true;
-	}
-
-	static function convertContentObjectTreeNode($object, $asObject=true){
-		$Item=self::createFromContentObjectTreeNode($object, false, true);
-		if(!$asObject){
-			return array(
-				'content'=>$Item->Content,
-				'link'=>$Item->Link,
-				'menu'=>$Item->Menu
-			);
+	static function cacheMenubarItem($key, $item){
+		if(!isset($GLOBALS[Menubar::OBJECT_CACHE_KEY][$key])){
+			$GLOBALS[Menubar::OBJECT_CACHE_KEY][$key] = array();
 		}
-		return $Item;
-	}
-
-	static function createFromContentObjectTreeNode($object, $isRootItem=false, $quiet=false){
-		if(!$quiet){
-			eZDebug::accumulatorStart('create_from_treenode', 'menubar_total', 'Create MenubarItem From ContentObjectTreeNode');
-		}
-		$Content = htmlentities($object->Name, ENT_COMPAT | 'ENT_HTML5' | 'ENT_HTML401', "UTF-8");
-		$isExternal = false;
-		if($object->ClassIdentifier=='link'){
-			$DataMap = $object->dataMap();
-			foreach($DataMap as $Identifier=>$Attribute){
-				if($Attribute->attribute('data_type_string')=='ezurl' && !empty($Attribude->DataText)){
-					$Content = $Attribute->DataText;
-					break;
-				}
-			}
-			if(isset($DataMap['open_in_new_window']) && $DataMap['open_in_new_window']->DataInt){
-				$isExternal = true;
-			}
-		}
-		$Instance = new self($Content, $isExternal, $object, $isRootItem);
-		if(!$quiet){
-			eZDebug::accumulatorStop('create_from_treenode');
-		}
-		return $Instance;
-	}
-
-	static function createFromParameters($parameters){
-		// execute conditional parameter to determine user defined parameters
-		if(isset($parameters['condition'])){
-			if(!$parameters['conditional']){
-				eZDebug::writeError('The "condition" parameter was specified without a "conditional" parameter.', 'Invalid Parameter ['.__METHOD__.']');
-				return false;
-			}
-			// reassign the result parameters to the primary user defined parameters
-			$parameters = self::executeConditional($parameters['condition'], $parameters['conditional']);
-		}
-		$Instance = new self($parameters['content']);
-		if(isset($parameters['link'])){
-			$Instance->Link = $parameters['link'];
-		}
-		if(isset($parameters['class'])){
-			foreach(explode(' ', $parameters['class']) as $class){
-				$Instance->addClass($class);
-			}
-		}
-		if(isset($parameters['menu']) && is_array($parameters['menu'])){
-			$Instance->setMenu(Menubar::initialize(array(
-				'items'=>$parameters['menu']
-			)));
-		}
-		return $Instance;
+		$GLOBALS[Menubar::OBJECT_CACHE_KEY][$key][] = $item->remoteID();
 	}
 
 	static function definition(){
-		return array(
-			'fields'=>array(
-				'content'=>array(
-					'name'=>'Content',
-					'datatype'=>'string',
-					'default'=>'',
-					'required'=>true
-				),
-				'link'=>array(
-					'name'=>'Link',
-					'datatype'=>'string',
-					'default'=>'',
-					'required'=>true
-				),
+		return self::extendDefinition(parent::definition(), array(
+			'fields' => array(
 				'delimiter'=>array(
 					'name'=>'Delimiter',
 					'datatype'=>'string',
 					'default'=>'',
 					'required'=>false
 				),
-				'has_menu'=>array(
-					'name'=>'hasMenu',
-					'datatype'=>'boolean',
+				'menu'=>array(
+					'name'=>'Menu',
+					'datatype'=>'mixed',
 					'default'=>false,
-					'required'=>true
-				),
-				'has_menu_display'=>array(
-					'name'=>'hasMenuDisplay',
-					'datatype'=>'boolean',
-					'default'=>false,
-					'required'=>true
-				),
-				'is_external'=>array(
-					'name'=>'isExternal',
-					'datatype'=>'boolean',
-					'default'=>false,
-					'required'=>true
+					'required'=>false
 				)
-			),
-			'function_attributes'=>array(
-				'class'=>'compileClassList',
-				'menu'=>'getMenu',
-				'menu_display'=>'getMenuDisplay',
-				'has_link'=>'hasLink',
-				'node'=>'getNode'
 			)
+		));
+	}
+
+	static function Options(){
+		return array(
+			// inherit parameters
+			'content' => '',
+			'link' => '',
+			'is_external' => false,
+			'class' => '',
+
+			// switch-based parameters
+			'condition' => false,
+			'conditional' => false,
+
+			// additional parameters
+			'placement' => false,
+			'menu' => false
 		);
 	}
 
-	static function executeConditional($condition, $options){
+	static function processOptions($options, $subset=false){
+		$Options = array_merge(self::Options(), $options);
+		$Options = array(
+			'inherit' => array_extract_key($Options, array(
+				'content', 'link', 'is_external', 'class'
+			)),
+			'switch' => array_extract_key($Options, array(
+				'condition', 'conditional'
+			)),
+			'additional' => array_extract_key($Options, array(
+				'placement', 'menu'
+			))
+		);
+		return $subset ? $Options[$subset] : $Options;
+	}
+
+	protected static function executeConditional($condition, $options){
 		eZDebug::accumulatorStart('execute_conditional', 'menubar_total', 'Execute Conditional Menubar Item');
 		switch($condition[0]){
 			case 'fetch':{
@@ -236,46 +119,12 @@ class MenubarItem extends PersistentObject
 
 		// check $Result type to confirm a boolean value
 		if(is_bool($Result)){
-			eZDebug::accumulatorStop('execute_conditional');
 			return $options[$Result];
 		}
 
 		eZDebug::accumulatorStop('execute_conditional');
 		eZDebug::writeError('The result of the executed condition is not a boolean value.', 'Invalid Condition Result ['.__METHOD__.']');
 		return null;
-	}
-
-	static function fetchMenuDisplay($item, $return=false){
-		if(!self::$MenuDisplaySettings){
-			self::$MenuDisplaySettings = eZINI::instance('menubar.ini')->group('MenuDisplay');
-		}
-		$MenuDisplayItems = unserialize($item->Node)->subTree(array(
-			'ClassFilterType'=>'include',
-			'ClassFilterArray'=>array(self::$MenuDisplaySettings['ClassIdentifier'])
-		));
-		if($Count = count($MenuDisplayItems)){
-			if($Count > self::$MenuDisplaySettings['AllowedPerItem']){
-				$MenuDisplayItems = array_slice($MenuDisplayItems, 0, self::$MenuDisplaySettings['AllowedPerItem']);
-			}
-			$item->setMenuDisplay($MenuDisplayItems);
-			return true;
-		}
-		return false;
-	}
-
-	static function getCurrentNodeData(){
-		if(isset($GLOBALS[self::GLOBALS_KEY])){
-			return $GLOBALS[self::GLOBALS_KEY];
-		}
-		if(SiteUtils::isContentPage()){
-			$ModuleData = $GLOBALS['eZRequestedModuleParams'];
-			$ContentNode = eZContentObjectTreeNode::fetch($ModuleData['parameters']['NodeID']);
-			return $GLOBALS[self::GLOBALS_KEY] = array(
-				'NodeID'=>$ModuleData['parameters']['NodeID'],
-				'PathArray'=>array_slice(array_reverse($ContentNode->pathArray()), 1)
-			);
-		}
-		return $GLOBALS[self::GLOBALS_KEY] = false;
 	}
 
 }

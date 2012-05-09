@@ -6,6 +6,10 @@
 *
 * Table of Contents
 	menu core
+		horizontal
+		vertical
+		primary
+		special items
 	navigation
 ********************************************************************************/
 
@@ -97,7 +101,6 @@ ul.vertical > li.delimiter{
 	background-color:#c0c0c0;
 	color:#000000;
 }
-
 .menu-display{
 	display:none;
 	position:absolute;

@@ -1,5 +1,7 @@
 <?php
 
-$eZTemplateOperatorArray=SiteUtils::TemplateOperators('extension/menubar');
+$eZTemplateOperatorArray = SiteUtils::TemplateOperators('extension/menubar');
+
+MenubarOperator::initializeMenubarOperator();
 
 ?>

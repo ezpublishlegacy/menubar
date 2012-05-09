@@ -2,230 +2,230 @@
 
 class Menubar extends PersistentObject
 {
-	static $ClassName = 'menu';
 
-	protected static $MenubarCache = array();
+	const OBJECT_CACHE_KEY = 'MenubarObjectCache';
 
-	public $MenubarID;
+	public static $Settings;
+
+	public $ID;
 	public $Orientation;
-	public $hasItems;
+	public $Header = false;
 
-	protected $Class;
-	protected $Items;
-	protected $ContentParameters;
+	protected $Count = 0;
+	protected $Options;
+	protected $ClassList = array();
+	protected $RootNode;
+	protected $Items = array();
 
-	private $RootNode;
+	function __construct($id=false, $options=false){
+		$this->ID = $id;
+		$this->Orientation = $options['orientation'];
+		$this->Options = $options;
 
-	function __construct($items=false, $orientation=false, $class=false){
-		// set object Orientation property
-		$this->Orientation = $orientation;
-		if(!$this->Orientation){
-			$this->Orientation = MenubarOperator::getOperatorDefaultParameter('menubar', 'orientation');
+		$this->Header = new MenubarItemObject($options['header']);
+
+		// generate initial class list array
+		$options['class'] = explode(' ', $options['class']);
+		$options['class'][] = $this->Orientation;
+		if($options['delimiter']){
+			$options['class'][] = 'delimiter';
 		}
-		// set object hasItems and Items properties as needed
-		$this->hasItems = false;
-		if($items){
-			$this->Items = $items;
-			$this->hasItems = true;
-		}
-		// set user defined class list
+		$this->addClass($options['class']);
+	}
+	function addClass($class){
 		if($class){
-			$this->Class = $class;
+			if(is_array($class)){
+				return $this->ClassList = array_merge($this->ClassList, $class);
+			}
+			return $this->addClass(explode(' ', $class));
 		}
+		return false;
 	}
 
-	function compileClassList(){
-		$ClassList = self::$ClassName.' '.$this->Orientation;
-		if(isset($this->Delimiter) && $this->Delimiter){
-			$ClassList .= ' delimiter';
+	function applyDelimiters(){
+		if($this->Options['delimiter']){
+			if($Count = $this->Count){
+				foreach($this->Items as $Key=>$Item){
+					if($Key+1 < $Count){
+						$this->Items[$Key]->Delimiter = $this->Options['delimiter'];
+					}
+				}
+				return true;
+			}
+			// eZDebug::writeError(__METHOD__);
 		}
-		if($this->Class){
-			$ClassList .= ' '.$this->Class;
-		}
-		return $ClassList;
+		return false;
 	}
 
-	function fetchParent(){
-		return $this->RootNode->fetchParent();
-	}
-
-	function fetchParentNodeID(){
-		return $this->RootNode->ParentNodeID;
-	}
-
-	function fetchRootNode(){
-		return $this->RootNode;
+	function getClassList($asString=true){
+		return $asString ? implode(' ', $this->ClassList) : $this->ClassList;
 	}
 
 	function getItems(){
-		if($this->hasItems){
-			return $this->Items;
-		}
-		return false;
+		return $this->Items;
 	}
 
-	function getItemCount(){
-		return is_array($this->Items) ? count($this->Items) : 0;
+	function getRootNode(){
+		return unserialize($this->RootNode);
 	}
 
-	protected function compileContentParameters($parameters){
-		eZDebug::accumulatorStart('content_parameters', 'menubar_total', 'Compile Content Parameters');
-		if($parameters['root_node_id']){
-			$FetchParameters = array(
-				'ClassFilterType'=>'include'
-			);
-			$ItemParameters['MenuDepth'] = $parameters['menu_depth'];
-			$ItemParameters['RootNodeID'] = $parameters['root_node_id'];
-			$ItemParameters['Delimiter'] = $parameters['delimiter'];
-			$ItemParameters['useMenuDisplay'] = $parameters['use_menu_display'];
-			if($this->RootNode = eZContentObjectTreeNode::fetch($parameters['root_node_id'])){
-				$FetchParameters['ClassFilterArray'] = eZINI::instance('menu.ini')->variable('MenuContentSettings', $parameters['identifier_list']);
-				$FetchParameters['SortBy'] = $this->RootNode->sortArray();
-				if($parameters['fetch_parameters']){
-					$FetchParameters = array_merge($FetchParameters, $parameters['fetch_parameters']);
+	function hasHeader(){
+		return $this->Header ? $this->Header->hasContent() : false;
+	}
+
+	function processContentItems($options, $object=false){
+		$hasRootNode = $hasReset = false;
+		$DefaultFetchOptions = array(
+			'Depth' => 1,
+			'ClassFilterType' => 'include',
+			'ClassFilterArray' => Menubar::$Settings['MenuContentSettings'][$options['identifier_list']]
+		);
+		eZDebug::accumulatorStart('process_object', 'menubar_total', "Process Object");
+		if($object && is_object($object)){
+			switch(get_class($object)){
+				case 'eZContentObjectTreeNode':{
+					$options['root_node_id'] = $object->NodeID;
+					$hasRootNode = true;
+					break;
 				}
-				$this->ContentParameters = (object)array(
-					'ItemParameters'=>$ItemParameters,
-					'FetchParameters'=>array_merge($FetchParameters, array('Depth'=>1))
-				);
-			eZDebug::accumulatorStart('content_parameters');
-				return true;
+				case 'eZContentObjectAttribute':{
+					$DataTypeClassList = self::$Settings['MenubarSettings']['DataTypeSettings']['ClassList'];
+					$this->Items = call_user_func(array($DataTypeClassList[$object->DataTypeString], 'fetch'), $object);
+					$this->Count = count($this->Items);
+					break;
+				}
 			}
 		}
-		eZDebug::accumulatorStart('content_parameters');
-		return false;
+		eZDebug::accumulatorStop('process_object');
+
+		if(!$this->Count){
+			eZDebug::accumulatorStart('handle_fetch', 'menubar_total', "Fetch Content Items");
+			// configure fetch parameters to match the required array "key" format
+			array_key_pascal_case($options['fetch_parameters']);
+			$FetchOptions = array_merge($DefaultFetchOptions, $options['fetch_parameters']);
+
+			// fetch root node for a content-based menubar if $object is not a content object tree node
+			$RootNode = $hasRootNode ? $object : eZContentObjectTreeNode::fetch($options['root_node_id']);
+			if($RootNode){
+				// serailize and set object "RootNode" property for possible later use
+				$this->RootNode = serialize($RootNode);
+
+				// use the root node sort array if a sorting mechanism has not been provided
+				if(!isset($FetchOptions['SortBy'])){
+					$FetchOptions['SortBy'] = $RootNode->sortArray();
+				}
+
+				// fetch content object tree node objects
+				$this->Items = eZContentObjectTreeNode::subTreeByNodeID($FetchOptions, $options['root_node_id']);
+				$this->Count = count($this->Items);
+
+				// reset menubar root node to current root node parent if "use_parent" options is set
+				if(!$this->Count && $options['use_parent']){
+					// setting the "$hasReset" variable prevents the header being processed multiple times
+					$hasReset = (bool) $this->processContentItems($options, $RootNode->fetchParent());
+				}
+
+				if(!$hasReset){
+					if($this->Header->Content){
+						$Changes = $this->Header->processContentObjectTreeNode($RootNode);
+						if($Changes['is_node_name'] && $this->Options['in_menubar'] && MenubarOperator::inMenubar($this->Options['in_menubar'], $RootNode)){
+							$this->Header->addClass('in-menubar');
+						}
+					}
+					// handle inclusion of the root node provided a root node exists
+					if($IncludeRootNode = $this->Options['include_root_node']){
+						// an object spliced into the array must be place into an array in order to function as intended
+						// http://us3.php.net/manual/en/function.array-splice.php
+						array_splice($this->Items, (($IncludeRootNode===true || $IncludeRootNode=='prepend') ? 0 : $this->Count), 0, array($RootNode));
+						$this->Count++;
+					}
+				}
+			}
+			eZDebug::accumulatorStop('handle_fetch');
+		}
+
+		if($this->Count && !$hasReset){
+			$hasDepth = $this->Options['current_only'] ? false : $this->Options['menu_depth'] > 1;
+			foreach($this->Items as $Key=>$Item){
+				if($this->ID){
+					MenubarItem::cacheMenubarItem($this->ID, $Item);
+				}
+				$ItemOptions = false;
+				if($hasDepth || ($this->Options['current_only'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
+					$ItemOptions = array_merge($options, array(
+						'menu_depth' => $this->Options['menu_depth'] - 1,
+						'use_parent' => false
+					));
+				}
+				$this->Items[$Key] = new MenubarItem();
+				$this->Items[$Key]->processContentObjectTreeNode($Item, $ItemOptions);
+				if($this->Options['allow_menu_display']){
+					$this->Items[$Key]->addClass('has-menu-display');
+				}
+			}
+		}
+		return $this->Count;
 	}
 
-	protected function finalize(){
-		if($this->MenubarID){
-			self::addMenubar($this->MenubarID, $this);
+	function processIncludes($items){
+		foreach($items as $Item){
+			$Placement = $this->Count;
+			if(isset($Item['placement'])){
+				$Placement = --$Item['placement'];
+				unset($Item['placement']);
+			}
+			// an object spliced into the array must be place into an array in order to function as intended
+			// http://us3.php.net/manual/en/function.array-splice.php
+			array_splice($this->Items, $Placement, 0, array(new MenubarItem($Item)));
+			$this->Count++;
 		}
-		return $this;
 	}
 
-	static function addMenubar($id, $object){
-		if(!self::hasMenubar($id)){
-			self::$MenubarCache[$id] = $object;
-			return true;
+	function setItems($items){
+		if(is_array($items) && $Count = count($items)){
+			foreach($items as $Key=>$Item){
+				$this->Items[] = new MenubarItem($Item);
+			}
+			return $this->Count = $Count;
 		}
-		eZDebug::writeWarning("Unable to add menubar to the cache due to the menubar id \"$id\" already exists.", __METHOD__.' - Invalid Menubar ID');
 		return false;
 	}
 
 	static function definition(){
 		return array(
-			'fields'=>array(
-				'orientation'=>array(
-					'name'=>'Orientation',
-					'datatype'=>'string',
-					'default'=>'vertical',
-					'required'=>true
+			'fields' => array(
+				'id' => array(
+					'name' => 'ID',
+					'datatype' => 'string',
+					'default' => '',
+					'required' => true
 				),
-				'has_items'=>array(
-					'name'=>'hasItems',
-					'datatype'=>'boolean',
-					'default'=>false,
-					'required'=>true
+				'orientation' => array(
+					'name' => 'Orientation',
+					'datatype' => 'string',
+					'default' => 'vertical',
+					'required' => true
+				),
+				'item_count' => array(
+					'name' => 'Count',
+					'datatype' => 'integer',
+					'default' => 0,
+					'required' => true
+				),
+				'header' => array(
+					'name' => 'Header',
+					'datatype' => 'mixed',
+					'default' => false,
+					'required' => true
 				)
 			),
-			'function_attributes'=>array(
-				'class'=>'compileClassList',
+			'function_attributes' => array(
+				'has_header' => 'hasHeader',
+				'class' => 'getClassList',
 				'items'=>'getItems',
-				'item_count'=>'getItemCount',
-				'root_node'=>'fetchRootNode'
+				'root_node' => 'getRootNode'
 			)
 		);
-	}
-
-	static function getMenubar($id){
-		if(self::hasMenubar($id)){
-			return self::$MenubarCache[$id];
-		}
-		return false;
-	}
-
-	static function hasMenubar($id){
-		return array_key_exists($id, self::$MenubarCache);
-	}
-
-	static function initialize($parameters, $serialize=false){
-		$Menubar = new self($parameters['items'], $parameters['orientation'], $parameters['class']);
-		if($parameters['menubar_id']){
-			$Menubar->MenubarID = $parameters['menubar_id'];
-		}
-		$Menubar->Delimiter = $parameters['delimiter'];
-		if($Menubar->hasItems){
-			$ItemCount = $Menubar->getItemCount()-1;
-			foreach($Menubar->Items as $Key=>$Item){
-				$Menubar->Items[$Key] = MenubarItem::createFromParameters($Item);
-				if($Key < $ItemCount){
-					$Menubar->Items[$Key]->Delimiter = $Menubar->Delimiter;
-				}
-			}
-			return $Menubar->finalize();
-		}
-		if($Menubar->compileContentParameters($parameters)){
-			$Menubar->Items = self::generateMenubarTree($Menubar->ContentParameters, $serialize);
-			if($parameters['include_root_node']){
-				array_unshift($Menubar->Items, MenubarItem::createFromContentObjectTreeNode($Menubar->RootNode, true));
-			}
-			self::processMenuIncludes($Menubar, $parameters);
-			if($Menubar->getItemCount()){
-				$Menubar->hasItems=true;
-			}
-			if(!$Menubar->hasItems && $parameters['use_parent']){
-				$Menubar = self::initialize(array_merge($parameters, array(
-					'root_node_id'=>$Menubar->fetchParentNodeID(),
-					'use_parent'=>false,
-				)));
-			}
-			return $Menubar->finalize();
-		}
-		return false;
-	}
-
-	protected static function generateMenubarTree($parameters, $serialize=false, $current_depth=1){
-		eZDebug::accumulatorStart('generate_tree', 'menubar_total', 'Generate Menubar Tree');
-		if($NodeList = eZContentObjectTreeNode::subTreeByNodeID($parameters->FetchParameters, $parameters->ItemParameters['RootNodeID'])){
-			$NodeListCount = count($NodeList)-1;
-			foreach($NodeList as $Key=>$Node){
-				$NodeList[$Key] = MenubarItem::createFromContentObjectTreeNode($Node);
-				if($Key < $NodeListCount){
-					$NodeList[$Key]->Delimiter = $parameters->ItemParameters['Delimiter'];
-				}
-				if($Node->childrenCount() && $parameters->ItemParameters['MenuDepth'] > $current_depth){
-					if($parameters->ItemParameters['useMenuDisplay']){
-						MenubarItem::fetchMenuDisplay($NodeList[$Key]);
-						continue;
-					}
-					$parameters->ItemParameters['RootNodeID'] = $Node->NodeID;
-					$NodeList[$Key]->setMenu(new self(self::generateMenubarTree($parameters, $serialize, $current_depth+1)));
-				}
-			}
-			eZDebug::accumulatorStop('generate_tree');
-			return $NodeList;
-		}
-		eZDebug::accumulatorStop('generate_tree');
-		return array();
-	}
-
-	protected static function processMenuIncludes($object, $parameters){
-		$ItemCount = $object->getItemCount();
-		foreach($parameters['append'] as $Key=>$Item){
-			$Item['placement'] = $ItemCount+$Key;
-			$parameters['include'][] = $Item;
-		}
-		if($parameters['include']){
-			$Insertions = 0;
-			foreach($parameters['include'] as $Item){
-				$MenuItem = MenubarItem::createFromParameters($Item);
-				if(isset($Item['placement'])){
-					array_splice($object->Items, $Item['placement']+$Insertions, 0, array($MenuItem));
-					$Insertions++;
-				}
-			}
-		}
-		return false;
 	}
 
 }

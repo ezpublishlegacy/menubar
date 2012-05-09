@@ -3,16 +3,16 @@
 class eZRootHandler
 {
 
-	static function process($menuitem){
-		$OperatorValue = $menuitem->getNode()->urlAlias();
-		if(preg_match("#^[a-zA-Z0-9]+:#", $OperatorValue) || substr($OperatorValue, 0, 2)=='//'){
-			return $OperatorValue;
+	static function process($object){
+		$Link = $object->urlAlias();
+		if(preg_match("#^[a-zA-Z0-9]+:#", $Link) || substr($Link, 0, 2)=='//'){
+			return $Link;
 		}
-		if(strlen( $OperatorValue)>0 && $OperatorValue[0]!='/'){
-			$OperatorValue = "/$OperatorValue";
+		if(strlen($Link)>0 && $Link[0]!='/'){
+			$Link = "/$Link";
 		}
-		eZURI::transformURI($OperatorValue, true, 'relative');
-		return $OperatorValue;
+		eZURI::transformURI($Link, true, 'relative');
+		return $Link;
 	}
 
 }
