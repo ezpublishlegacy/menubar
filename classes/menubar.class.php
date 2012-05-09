@@ -151,7 +151,7 @@ class Menubar extends PersistentObject
 					MenubarItem::cacheMenubarItem($this->ID, $Item);
 				}
 				$ItemOptions = false;
-				if($hasDepth || ($this->Options['current_only'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
+				if($hasDepth || ($this->Options['current_only'] && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
 					$ItemOptions = array_merge($options, array(
 						'menu_depth' => $this->Options['menu_depth'] - 1,
 						'use_parent' => false

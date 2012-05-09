@@ -29,7 +29,7 @@ class MenubarItem extends MenubarItemObject
 			eZDebug::accumulatorStop('menubar_submenu');
 		}
 
-		if(in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
+		if(Menubar::$Settings['CurrentNode'] && in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
 			$this->addClass( ($object->NodeID==Menubar::$Settings['CurrentNode']->NodeID) ? 'current' : 'current-parent');
 		}
 	}
