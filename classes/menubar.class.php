@@ -30,7 +30,7 @@ class Menubar extends PersistentObject
 		}
 
 		// generate initial class list array
-		$options['class'] = explode(' ', $options['class']);
+		$options['class'] = $options['class'] ? explode(' ', $options['class']) : array();
 		$options['class'][] = $this->Orientation;
 		if($options['delimiter']){
 			$options['class'][] = 'delimiter';
