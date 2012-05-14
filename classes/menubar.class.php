@@ -13,6 +13,7 @@ class Menubar extends PersistentObject
 
 	protected $Count = 0;
 	protected $Options;
+	protected $ItemLimit = false;
 	protected $ClassList = array();
 	protected $RootNode;
 	protected $Items = array();
@@ -23,6 +24,10 @@ class Menubar extends PersistentObject
 		$this->Options = $options;
 
 		$this->Header = new MenubarItemObject($options['header']);
+
+		if($options['item_limit']){
+			$this->ItemLimit = $options['item_limit'];
+		}
 
 		// generate initial class list array
 		$options['class'] = explode(' ', $options['class']);
@@ -200,6 +205,12 @@ class Menubar extends PersistentObject
 					'default' => '',
 					'required' => true
 				),
+				'header' => array(
+					'name' => 'Header',
+					'datatype' => 'mixed',
+					'default' => false,
+					'required' => true
+				),
 				'orientation' => array(
 					'name' => 'Orientation',
 					'datatype' => 'string',
@@ -212,8 +223,8 @@ class Menubar extends PersistentObject
 					'default' => 0,
 					'required' => true
 				),
-				'header' => array(
-					'name' => 'Header',
+				'item_limit' =>  array(
+					'name' => 'ItemLimit',
 					'datatype' => 'mixed',
 					'default' => false,
 					'required' => true

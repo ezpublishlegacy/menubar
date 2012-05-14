@@ -142,6 +142,7 @@ class MenubarOperator
 				'allow_menu_display' => false,
 				'header' => false,
 				'in_menubar' => '',
+				'item_limit' => false,
 
 				// menubar-based class parameters
 				'orientation' => 'vertical',
@@ -169,7 +170,7 @@ class MenubarOperator
 			case 'menubar':{
 				$Options = array(
 					'menubar' => array_extract_key($Options, array(
-						'include_root_node', 'menu_depth', 'current_only', 'delimiter', 'allow_menu_display', 'header', 'in_menubar', 'orientation', 'class'
+						'include_root_node', 'menu_depth', 'current_only', 'delimiter', 'allow_menu_display', 'header', 'in_menubar', 'item_limit', 'orientation', 'class'
 					)),
 					'fetch' => array_extract_key($Options, array(
 						'root_node_id', 'identifier_list', 'fetch_parameters', 'use_parent'
