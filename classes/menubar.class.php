@@ -156,6 +156,7 @@ class Menubar extends PersistentObject
 				}
 				$ItemOptions = false;
 				if($hasDepth || ($this->Options['current_only'] && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
+					$options['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(0, 500)));
 					$ItemOptions = array_merge($options, array(
 						'menu_depth' => $this->Options['menu_depth'] - 1,
 						'use_parent' => false
