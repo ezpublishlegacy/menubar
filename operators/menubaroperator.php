@@ -61,7 +61,8 @@ class MenubarOperator
 			'RootNodeID' => $ContentINI->variable('NodeSettings','RootNode'),
 			'MenuContentSettings' => $MenuINI->group('MenuContentSettings'),
 			'MenubarSettings' => eZINI::instance('menubar.ini')->groups(),
-			'CurrentNode' => false
+			'CurrentNode' => false,
+			'TopLevelNodes' => array_values($ContentINI->group('NodeSettings'))
 		);
 		if(SiteUtils::isContentPage()){
 			Menubar::$Settings['CurrentNode'] = eZContentObjectTreeNode::fetch($GLOBALS['eZRequestedModuleParams']['parameters']['NodeID']);

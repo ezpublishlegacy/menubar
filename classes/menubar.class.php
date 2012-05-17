@@ -123,9 +123,8 @@ class Menubar extends PersistentObject
 				// fetch content object tree node objects
 				$this->Items = eZContentObjectTreeNode::subTreeByNodeID($FetchOptions, $options['root_node_id']);
 				$this->Count = count($this->Items);
-
-				// reset menubar root node to current root node parent if "use_parent" options is set
-				if(!$this->Count && $options['use_parent']){
+				// reset menubar root node to current root node parent if "use_parent" options is set and current root node is not a top level node
+				if(!$this->Count && $options['use_parent'] && !in_array($options['root_node_id'], self::$Settings['TopLevelNodes'])){
 					// setting the "$hasReset" variable prevents the header being processed multiple times
 					$hasReset = (bool) $this->processContentItems($options, $RootNode->fetchParent());
 				}
