@@ -14,7 +14,7 @@ var $Menubar=(function($){
 				$('ul.menu:not(.delimiter) > li:not(:last-child)').removeClass('delimiter');
 			},
 			'run':function(){
-				$$('ul.menu').menubar();
+				$$('ul.menu.dynamic').menubar();
 			}
 		}
 	;
