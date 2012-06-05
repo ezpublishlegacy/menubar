@@ -13,30 +13,42 @@ class Menubar extends PersistentObject
 
 	protected $Count = 0;
 	protected $Options;
-	protected $ItemLimit = false;
+	protected $Columnize = false;
 	protected $ClassList = array();
 	protected $RootNode;
 	protected $Items = array();
+	protected $MenubarSplit = false;
+	protected $SplitPoints = false;
 
 	function __construct($id=false, $options=false){
 		$this->ID = $id;
-		$this->Orientation = $options['orientation'];
-		$this->Options = $options;
+		if(self::hasOptions($options)){
+			if(is_array($options)){
+				$options = OptionsHandler::instance($options);
+			}
+			$Options = $this->Options = $options;
 
-		$this->Header = new MenubarItemObject($options['header']);
+			$this->Orientation = $Options->get('orientation');
+			$this->Header = new MenubarItemObject($Options->get('header'));
 
-		if($options['item_limit']){
-			$this->ItemLimit = $options['item_limit'];
+			// generate initial class list array
+			$Class = $Options->has('class') ? explode(' ', $Options->get('class')) : array();
+			$Class[] = $this->Orientation;
+			if($Options->has('delimiter')){
+				$Class[] = 'delimiter';
+			}
+			$this->addClass($Class);
+
+			if($Options->has('split') && $Split = $Options->get('split')){
+				if(is_bool($Split)){
+					$Split = array('type' => 'content');
+				}
+				$this->MenubarSplit = new MenubarSplit($Split);
+				$this->Columnize = $this->MenubarSplit->getOption('columnize');
+			}
 		}
-
-		// generate initial class list array
-		$options['class'] = $options['class'] ? explode(' ', $options['class']) : array();
-		$options['class'][] = $this->Orientation;
-		if($options['delimiter']){
-			$options['class'][] = 'delimiter';
-		}
-		$this->addClass($options['class']);
 	}
+
 	function addClass($class){
 		if($class){
 			if(is_array($class)){
@@ -48,11 +60,11 @@ class Menubar extends PersistentObject
 	}
 
 	function applyDelimiters(){
-		if($this->Options['delimiter']){
-			if($Count = $this->Count){
+		if($this->Options->has('delimiter') && $Delimiter=$this->Options->get('delimiter')){
+			if($Count = $this->Count-1){
 				foreach($this->Items as $Key=>$Item){
-					if($Key+1 < $Count){
-						$this->Items[$Key]->Delimiter = $this->Options['delimiter'];
+					if($Key < $Count){
+						$this->Items[$Key]->Delimiter = $Delimiter;
 					}
 				}
 				return true;
@@ -66,16 +78,12 @@ class Menubar extends PersistentObject
 		return $asString ? implode(' ', $this->ClassList) : $this->ClassList;
 	}
 
-	function getItems(){
-		return $this->Items;
-	}
-
-	function getRootNode(){
-		return unserialize($this->RootNode);
-	}
-
 	function hasHeader(){
 		return $this->Header ? $this->Header->hasContent() : false;
+	}
+
+	function isMultiple(){
+		return $this->MenubarSplit && $this->MenubarSplit->hasDivisions();
 	}
 
 	function processContentItems($options, $object=false){
@@ -112,12 +120,15 @@ class Menubar extends PersistentObject
 			// fetch root node for a content-based menubar if $object is not a content object tree node
 			$RootNode = $hasRootNode ? $object : eZContentObjectTreeNode::fetch($options['root_node_id']);
 			if($RootNode){
+				$NodeSortArray = current($RootNode->sortArray());
+
 				// serailize and set object "RootNode" property for possible later use
 				$this->RootNode = serialize($RootNode);
 
 				// use the root node sort array if a sorting mechanism has not been provided
-				if(!isset($FetchOptions['SortBy'])){
-					$FetchOptions['SortBy'] = $RootNode->sortArray();
+				$isNameSplit = ($this->MenubarSplit && $this->MenubarSplit->isType('name'));
+				if(!isset($FetchOptions['SortBy']) || $isNameSplit){
+					$FetchOptions['SortBy'] = $isNameSplit ? array('name', true) : $NodeSortArray;
 				}
 
 				// fetch content object tree node objects
@@ -130,14 +141,17 @@ class Menubar extends PersistentObject
 				}
 
 				if(!$hasReset){
-					if($this->Header->Content){
+					if($this->Header->hasContent()){
 						$Changes = $this->Header->processContentObjectTreeNode($RootNode);
-						if($Changes['is_node_name'] && $this->Options['in_menubar'] && MenubarOperator::inMenubar($this->Options['in_menubar'], $RootNode)){
-							$this->Header->addClass('in-menubar');
+						if($Changes['is_node_name'] && $this->Options->get('in_menubar')){
+							// add class "in-menubar" to menubar header if the root node is in the top level items of the specified menubar
+							if(MenubarOperator::inMenubar($this->Options->get('in_menubar'), $RootNode)){
+								$this->Header->addClass('in-menubar');
+							}
 						}
 					}
 					// handle inclusion of the root node provided a root node exists
-					if($IncludeRootNode = $this->Options['include_root_node']){
+					if($IncludeRootNode = $this->Options->get('include_root_node')){
 						// an object spliced into the array must be place into an array in order to function as intended
 						// http://us3.php.net/manual/en/function.array-splice.php
 						array_splice($this->Items, (($IncludeRootNode===true || $IncludeRootNode=='prepend') ? 0 : $this->Count), 0, array($RootNode));
@@ -149,26 +163,33 @@ class Menubar extends PersistentObject
 		}
 
 		if($this->Count && !$hasReset){
-			$hasDepth = $this->Options['current_only'] ? false : $this->Options['menu_depth'] > 1;
+			$isCurrentOnly = $this->Options->get('current_only');
+			$MenuDepth = $this->Options->get('menu_depth');
+			$hasDepth = $isCurrentOnly ? false : ($MenuDepth > 1);
+			$isMultiple = $this->isMultiple();
 			foreach($this->Items as $Key=>$Item){
+				if($isMultiple && $SplitPoint=$this->MenubarSplit->checkSplitPoint($Item, $Key)){
+					$this->SplitPoints[$Key] = $SplitPoint;
+				}
 				if($this->ID){
 					MenubarItem::cacheMenubarItem($this->ID, $Item);
 				}
 				$ItemOptions = false;
-				if($hasDepth || ($this->Options['current_only'] && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
-					$options['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(0, 500)));
+				if($hasDepth || ($isCurrentOnly && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
+					$options['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
 					$ItemOptions = array_merge($options, array(
-						'menu_depth' => $this->Options['menu_depth'] - 1,
+						'menu_depth' => $MenuDepth - 1,
 						'use_parent' => false
 					));
 				}
 				$this->Items[$Key] = new MenubarItem();
 				$this->Items[$Key]->processContentObjectTreeNode($Item, $ItemOptions);
-				if($this->Options['allow_menu_display']){
+				if($this->Options->get('allow_menu_display')){
 					$this->Items[$Key]->addClass('has-menu-display');
 				}
 			}
 		}
+
 		return $this->Count;
 	}
 
@@ -217,26 +238,41 @@ class Menubar extends PersistentObject
 					'default' => 'vertical',
 					'required' => true
 				),
+				'columnize' => array(
+					'name' => 'Columnize',
+					'datatype' => 'Boolean',
+					'default' => false,
+					'required' => false
+				),
+				'items' => array(
+					'name' => 'Items',
+					'datatype' => 'array',
+					'default' => array(),
+					'required' => true
+				),
 				'item_count' => array(
 					'name' => 'Count',
 					'datatype' => 'integer',
 					'default' => 0,
 					'required' => true
 				),
-				'item_limit' =>  array(
-					'name' => 'ItemLimit',
-					'datatype' => 'mixed',
-					'default' => false,
+				'split_points' => array(
+					'name' => 'SplitPoints',
+					'datatype' => 'array',
+					'default' => array(),
 					'required' => true
 				)
 			),
 			'function_attributes' => array(
 				'has_header' => 'hasHeader',
-				'class' => 'getClassList',
-				'items'=>'getItems',
-				'root_node' => 'getRootNode'
+				'is_multiple' => 'isMultiple',
+				'class' => 'getClassList'
 			)
 		);
+	}
+
+	protected static function hasOptions($options){
+		return $options && ((is_object($options) && get_class($options)=='OptionsHandler') || is_array($options));
 	}
 
 }

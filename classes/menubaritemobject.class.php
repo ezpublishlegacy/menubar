@@ -3,23 +3,25 @@
 class MenubarItemObject extends PersistentObject
 {
 
-	public $Content = '';
+	const CLASS_NAME = 'MenubarItemObject';
+
 	public $Link = '';
 	public $isExternal = false;
 
+	protected $Content = '';
 	protected $ClassList = array();
 	protected $Options;
 
 	function __construct($options=false){
-		if($options && $this->Options = self::processOptions($options)){
-			if(is_string($this->Options['content'])){
-				$this->Options['content'] = htmlentities($this->Options['content'], ENT_COMPAT | 'ENT_HTML5' | 'ENT_HTML401', "UTF-8");
-			}
-			$this->Content = $this->Options['content'];
-			$this->Link = $this->Options['link'];
-			$this->isExternal = $this->Options['is_external'];
-			if($this->Options['class']){
-				$this->addClass($this->Options['class']);
+		if($options){
+			$Options = $this->Options = OptionsHandler::create('MenubarItemObject');
+			if($Options->process($options)){
+				$Options->translateTo($this, array(
+					'content' => 'setContent',
+					'link' => 'Link',
+					'is_external' => 'isExternal',
+					'class' => 'addClass'
+				));
 			}
 		}
 	}
@@ -43,70 +45,93 @@ class MenubarItemObject extends PersistentObject
 	}
 
 	function processContentObjectTreeNode(eZContentObjectTreeNode $object){
-		eZDebug::accumulatorStart('process_treenode', 'menubar_total', "Process Content Object Tree Node");
-		$Result = array('content' => false, 'is_node_name' => false, 'link' => false, 'is_external' => false);
+		$ID = $object->remoteID();
+		if(!isset($GLOBALS['MenubarItemObjectCache'][$ID])){
+			eZDebug::accumulatorStart('process_treenode', 'menubar_total', "Process Content Object Tree Node");
+			$Result = array('content' => false, 'is_node_name' => false, 'link' => false, 'is_external' => false);
+			$Data = array('Content' => false, 'Link' => false, 'isExternal' => false, 'Class' => "node-id-$object->NodeID");
 
-		// "allow custom PHP class to process each type of class {enhancement}" here
-		// have the PHP class method return a value for content instead of overwritting
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		eZDebug::accumulatorStart('attribute_handler', 'menubar_total', " - Handle Content Object Attributes");
-		if($object->ClassIdentifier=='link'){
-			$DataMap = $object->dataMap();
+			// "allow custom PHP class to process each type of class {enhancement}" here
+			// have the PHP class method return a value for content instead of overwritting
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			eZDebug::accumulatorStart('attribute_handler', 'menubar_total', " - Handle Content Object Attributes");
+			if($object->ClassIdentifier=='link'){
+				$DataMap = $object->dataMap();
 
-			// poor handling: use an ini setting to determine the attribute to use
-			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			foreach($DataMap as $Identifier=>$Attribute){
-				if($Attribute->attribute('data_type_string')=='ezurl' && !empty($Attribude->DataText)){
-					$this->Content = $Attribute->DataText;
-					$Result['content'] = true;
-					break;
-				}
-			}
-			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-			// poor handling: use an ini setting to determine the attribute to use
-			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			if(isset($DataMap['open_in_new_window']) && $DataMap['open_in_new_window']->DataInt){
-				$this->isExternal = $Result['is_external'] = true;
-			}
-			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		}
-		eZDebug::accumulatorStop('attribute_handler');
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-		if($this->Link!==false){
-			$LinkHandlerClass = Menubar::$Settings['MenubarSettings']['MenubarItem']['LinkHandlerList'][Menubar::$Settings['MenubarSettings']['MenubarItem']['LinkEngine']];
-			eZDebug::accumulatorStart('process_link', 'menubar_total', " - Process Menubar Item Link [$LinkHandlerClass]");
-			// directly from MenubarItem::generateItemLink()
-			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			if($this->Link = call_user_func(array($LinkHandlerClass, 'process'), $object)){
-				if(is_array($this->Link)){
-					// prevent "Content" from being overwritten if "Content" is a "true" string
-					if(isset($this->Link['content']) && $this->Link['content']){
-						$this->Content = $this->Link['content'];
+				// poor handling: use an ini setting to determine the attribute to use
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				foreach($DataMap as $Identifier=>$Attribute){
+					if($Attribute->attribute('data_type_string')=='ezurl' && !empty($Attribude->DataText)){
+						$Data['Content'] = $Attribute->DataText;
 						$Result['content'] = true;
+						break;
 					}
-					$this->Link = $this->Link['link'];
 				}
-				$Result['link'] = true;
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+				// poor handling: use an ini setting to determine the attribute to use
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				if(isset($DataMap['open_in_new_window']) && $DataMap['open_in_new_window']->DataInt){
+					$Data['isExternal'] = $Result['is_external'] = true;
+				}
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			}
+			eZDebug::accumulatorStop('attribute_handler');
 			////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-			eZDebug::accumulatorStop('process_link');
+
+			if($this->Link !== false){
+				$LinkHandlerClass = Menubar::$Settings['MenubarSettings']['MenubarItem']['LinkHandlerList'][Menubar::$Settings['MenubarSettings']['MenubarItem']['LinkEngine']];
+				eZDebug::accumulatorStart('process_link', 'menubar_total', " - Process Menubar Item Link [$LinkHandlerClass]");
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				if($Data['Link'] = call_user_func(array($LinkHandlerClass, 'process'), $object)){
+					if(is_array($Data['Link'])){
+						// prevent "Content" from being overwritten if "Content" is a "true" string
+						if(isset($Data['Link']['content']) && $Data['Link']['content']){
+							$Data['Content'] = $Data['Link']['content'];
+							$Result['content'] = true;
+						}
+						$Data['Link'] = $Data['Link']['link'];
+					}
+					$Result['link'] = true;
+				}
+				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				eZDebug::accumulatorStop('process_link');
+			}
+
+			// check if "Content" has not already been set to a "true" string
+			if(!is_string($this->Content) || !$this->Content){
+				$Data['Content'] = $object->getName();
+				$Result['content'] = $Result['is_node_name'] = true;
+			}
+
+			// cache "Data" and "Result" to prevent duplicate processing of the same content object tree node
+			$GLOBALS['MenubarItemObjectCache'][$ID] = compact('Data', 'Result');
+			eZDebug::accumulatorStop('process_treenode');
 		}
 
-		$this->addClass("node-id-$object->NodeID");
-		// check if "Content" has not already been set to a "true" string
-		if(!is_string($this->Content) || !$this->Content){
-			$this->Content = $object->getName();
-			$Result['content'] = $Result['is_node_name'] = true;
-		}
-
+		eZDebug::accumulatorStart('set_treenode', 'menubar_total', "Set Content Object Tree Node Data");
+		extract($GLOBALS['MenubarItemObjectCache'][$ID]);
+		$this->addClass($Data['Class']);
 		if($Result['content']){
-			$this->Content = htmlentities($this->Content, ENT_COMPAT | 'ENT_HTML5' | 'ENT_HTML401', "UTF-8");
+			$this->setContent($Data['Content']);
 		}
+		if($Result['link']){
+			$this->Link = $Data['Link'];
+		}
+		if($Result['is_external']){
+			$this->isExternal = $Data['isExternal'];
+		}
+		eZDebug::accumulatorStop('set_treenode');
 
-		eZDebug::accumulatorStop('process_treenode');
 		return $Result;
+	}
+
+	function setContent($content){
+		if(($isString=is_string($content)) || is_bool($content)){
+			$this->Content = $isString ? htmlentities($content, ENT_COMPAT | 'ENT_HTML5' | 'ENT_HTML401', "UTF-8") : $content;
+			return true;
+		}
+		return false;
 	}
 
 	static function definition(){
@@ -139,25 +164,28 @@ class MenubarItemObject extends PersistentObject
 	}
 
 	static function Options(){
-		return array(
-			'content' => '',
-			'link' => '',
-			'is_external' => false,
-			'class' => ''
+		$Configuration = array(
+			'scheme' => array(
+				'content' => array(
+					'type' => 'boolean | string',
+					'default' => true
+				),
+				'link' => array(
+					'type' => 'string',
+					'default' => ''
+				),
+				'is_external' => array(
+					'type' => 'boolean',
+					'default' => false
+				),
+				'class' => array(
+					'type' => 'array | string',
+					'default' => ''
+				)
+			),
+			'default' => 'content'
 		);
-	}
-
-	static function processOptions($options){
-		if(is_bool($options) || is_string($options)){
-			$options = array('content' => $options);
-		}
-		if(is_array($options)){
-			if(!isset($options['content'])){
-				$options['content'] = true;
-			}
-			return array_merge(self::Options(), $options);
-		}
-		return false;
+		return new OptionsScheme($Configuration);
 	}
 
 }

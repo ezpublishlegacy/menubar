@@ -83,107 +83,168 @@ class MenubarOperator
 			eZDebug::accumulatorStart('menubar_total');
 			// initial variable initialization
 			$MenubarID = false;
-			$Options = $parameters;
 			if($parameters){
 				if($isOperator){
-					$MenubarID = $Options['menubar_id'];
-					$Options = $Options['options'];
+					$MenubarID = $parameters['menubar_id'];
+					$parameters = $parameters['options'];
 				}
 				// check if a "menubar_id" has been set in the options
-				if(is_array($Options) && isset($Options['menubar_id'])){
-					$MenubarID = $Options['menubar_id'];
-					unset($Options['menubar_id']);
-				}
-			}
-			$Options = self::processOptions('menubar', $Options);
-
-			// create instance of the "Menubar" class
-			$Menubar = new Menubar($MenubarID, $Options['menubar']);
-
-			// attempt to set static-based items, otherwise attempt a fetch based on the object provided
-			if(!$Menubar->setItems($Options['static']['items'])){
-				if(!$Menubar->processContentItems($Options['fetch'], $object)){
-					// eZDebug::writeError($Menubar, __METHOD__);
-					eZDebug::accumulatorStop('menubar_total');
-					return $Menubar;
+				if(is_array($parameters) && isset($parameters['menubar_id'])){
+					$MenubarID = $parameters['menubar_id'];
+					unset($parameters['menubar_id']);
 				}
 			}
 
-			// handle the additional static-based items
-			if($Options['static']['append'] || $Options['static']['include']){
-				eZDebug::accumulatorStart('additional_static', 'menubar_total', "Additional Static-Based Items");
-				$Static = $Options['static'];
-				// add appended items to the end of the include array
-				foreach($Static['append'] as $Key=>$Item){
-					$Static['include'][] = $Item;
+			$Options = OptionsHandler::create('MenubarOperator');
+			if($Options->process($parameters, 'menubar')){
+				// create instance of the "Menubar" class
+				$Menubar = new Menubar($MenubarID, $Options->export('menubar', true));
+
+				// attempt to set static-based items, otherwise attempt a fetch based on the object provided
+				if(!$Menubar->setItems($Options->get('items'))){
+					if(!$Menubar->processContentItems($Options->get('fetch', true), $object)){
+						// eZDebug::writeError($Menubar, __METHOD__);
+						eZDebug::accumulatorStop('menubar_total');
+						return $Menubar;
+					}
 				}
-				// process the static include/append items
-				$Menubar->processIncludes($Static['include']);
-				eZDebug::accumulatorStop('additional_static');
+
+				// handle the additional static-based items
+				if(($hasAppend = $Options->has('append')) || $Options->has('include')){
+					eZDebug::accumulatorStart('additional_static', 'menubar_total', "Additional Static-Based Items");
+					$Includes = $Options->get('include');
+					if($hasAppend){
+						// add appended items to the end of the include array
+						foreach($Options->get('append') as $Key=>$Item){
+							$Includes[] = $Item;
+						}
+					}
+					// process the static include/append items
+					$Menubar->processIncludes($Includes);
+					eZDebug::accumulatorStop('additional_static');
+				}
+
+				$Menubar->applyDelimiters();
+				eZDebug::accumulatorStop('menubar_total');
+				return $Menubar;
 			}
-
-			$Menubar->applyDelimiters();
-
-//	eZDebug::writeDebug($Menubar, __METHOD__.' [$Menubar - '.$Menubar->ID.']');
-			eZDebug::accumulatorStop('menubar_total');
-			return $Menubar;
 		}
 		return false;
 	}
 
-	static function Options($operator){
+	static function Options(){
 		$Options = array(
 			'menubar' => array(
-//				'menubar_id'=>false,
+				'scheme' => array(
+					// menubar-based parameters
+					'include_root_node' => array(
+						'type' => 'boolean',
+						'default' => false
+					),
+					'menu_depth' => array(
+						'type' => 'integer',
+						'default' => 1
+					),
+					'delimiter' => array(
+						'type' => 'boolean | string',
+						'default' => false
+					),
+					'allow_menu_display' => array(
+						'type' => 'boolean',
+						'default' => false
+					),
+					'header' => array(
+						'type' => 'array | boolean | string',
+						'default' => false
+					),
+					'in_menubar' => array(
+						'type' => 'string',
+						'default' => ''
+					),
+					'item_limit' => array(
+						'type' => 'integer',
+						'default' => 0
+					),
+					'split' => array(
+						'type' => 'array | boolean',
+						'default' => false
+					),
 
-				// menubar-based parameters
-				'include_root_node' => false,
-				'menu_depth' => 1,
-				'delimiter' => false,
-				'allow_menu_display' => false,
-				'header' => false,
-				'in_menubar' => '',
-				'item_limit' => false,
+					// menubar-based class parameters
+					'orientation' => array(
+						'type' => 'string',
+						'default' => 'vertical'
+					),
+					'class' => array(
+						'type' => 'string',
+						'default' => ''
+					),
 
-				// menubar-based class parameters
-				'orientation' => 'vertical',
-				'class' => '',
+					// fetch-based parameters
+					'root_node_id' => array(
+						'type' => 'integer',
+						'default' => (int) Menubar::$Settings['RootNodeID']
+					),
+					'identifier_list' => array(
+						'type' => 'string',
+						'default' => 'LeftIdentifierList'
+					),
+					'fetch_parameters' => array(
+						'type' => 'array',
+						'default' => array()
+					),
+					'use_parent' => array(
+						'type' => 'boolean',
+						'default' => true
+					),
+					'current_only' => array(
+						'type' => 'boolean',
+						'default' => false
+					),
 
-				// fetch-based parameters
-				'root_node_id' => Menubar::$Settings['RootNodeID'],
-				'identifier_list' => 'LeftIdentifierList',
-				'fetch_parameters' => array(),
-				'use_parent' => true,
-				'current_only' => false,
-
-				// static-based parameters
-				'include' => array(),
-				'append' => array(),
-				'items' => array()
+					// static-based parameters
+					'include' => array(
+						'type' => 'array',
+						'default' => array()
+					),
+					'append' => array(
+						'type' => 'array',
+						'default' => array()
+					),
+					'items' => array(
+						'type' => 'array',
+						'default' => array()
+					)
+				),
+				'group' => array(
+					array(
+						'name' => 'menubar',
+						'options' => array(
+							'include_root_node', 'menu_depth', 'current_only', 'delimiter', 'allow_menu_display', 'header', 'in_menubar', 'item_limit', 'split', 'orientation', 'class'
+						)
+					),
+					array(
+						'name' => 'fetch',
+						'trigger' => 'root_node_id',
+						'options' => array(
+							'root_node_id', 'identifier_list', 'fetch_parameters', 'use_parent'
+						)
+					),
+					array(
+						'name' => 'static',
+						'options' => array(
+							'include', 'append', 'items'
+						)
+					)
+				)
 			)
 		);
-		return $operator ? $Options[$operator] : $Options;
-	}
-
-	static function processOptions($operator, $options){
-		$Options = array_merge(self::Options($operator), $options);
-		switch($operator){
-			case 'menubar':{
-				$Options = array(
-					'menubar' => array_extract_key($Options, array(
-						'include_root_node', 'menu_depth', 'current_only', 'delimiter', 'allow_menu_display', 'header', 'in_menubar', 'item_limit', 'orientation', 'class'
-					)),
-					'fetch' => array_extract_key($Options, array(
-						'root_node_id', 'identifier_list', 'fetch_parameters', 'use_parent'
-					)),
-					'static' => array_extract_key($Options, array(
-						'include', 'append', 'items'
-					))
-				);
-			}
+		foreach($Options as $Operator=>$Configuration){
+			$Options[$Operator] = new OptionsScheme($Configuration);
 		}
 		return $Options;
 	}
+
 }
 
 
