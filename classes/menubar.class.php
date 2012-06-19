@@ -18,7 +18,7 @@ class Menubar extends PersistentObject
 	protected $RootNode;
 	protected $Items = array();
 	protected $MenubarSplit = false;
-	protected $SplitPoints = false;
+	protected $SplitPoints = array();
 
 	function __construct($id=false, $options=false){
 		$this->ID = $id;
