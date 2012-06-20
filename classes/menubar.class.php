@@ -120,6 +120,7 @@ class Menubar extends PersistentObject
 			// fetch root node for a content-based menubar if $object is not a content object tree node
 			$RootNode = $hasRootNode ? $object : eZContentObjectTreeNode::fetch($options['root_node_id']);
 			if($RootNode){
+				$hasRootNode = true;
 				$NodeSortArray = current($RootNode->sortArray());
 
 				// serailize and set object "RootNode" property for possible later use
@@ -176,11 +177,18 @@ class Menubar extends PersistentObject
 				}
 				$ItemOptions = false;
 				if($hasDepth || ($isCurrentOnly && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
-					$options['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
 					$ItemOptions = array_merge($options, array(
 						'menu_depth' => $MenuDepth - 1,
 						'use_parent' => false
 					));
+					if($ItemOptions['fetch_parameters'] && $ItemOptions['fetch_parameters']['AttributeFilter']){
+						if(current(current($options['fetch_parameters']['AttributeFilter'])) == 'priority'){
+							unset($ItemOptions['fetch_parameters']['AttributeFilter']);
+							if(current(current($Item->sortArray())) == 'priority'){
+								$ItemOptions['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
+							}
+						}
+					}
 				}
 				$this->Items[$Key] = new MenubarItem();
 				$this->Items[$Key]->processContentObjectTreeNode($Item, $ItemOptions);
