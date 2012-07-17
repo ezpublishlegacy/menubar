@@ -91,7 +91,8 @@ var $Menubar=(function($){
 	};
 
 	$$.fn.menubar=function(){
-		this.each(function(){
+		var item = this.find('ul.menu');
+		item.each(function(){
 			var Menu=$$(this),
 				Parent=Menu.parent(),
 				isSubmenu=Parent.is('li')
