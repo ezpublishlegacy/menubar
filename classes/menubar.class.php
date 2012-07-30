@@ -16,6 +16,7 @@ class Menubar extends PersistentObject
 	protected $Columnize = false;
 	protected $ClassList = array();
 	protected $RootNode;
+	protected $RootNodePosition;
 	protected $Items = array();
 	protected $MenubarSplit = false;
 	protected $SplitPoints = array();
@@ -119,6 +120,7 @@ class Menubar extends PersistentObject
 
 			// fetch root node for a content-based menubar if $object is not a content object tree node
 			$RootNode = $hasRootNode ? $object : eZContentObjectTreeNode::fetch($options['root_node_id']);
+			$this->RootNodePosition = null;
 			if($RootNode){
 				$hasRootNode = true;
 				$NodeSortArray = current($RootNode->sortArray());
@@ -153,9 +155,10 @@ class Menubar extends PersistentObject
 					}
 					// handle inclusion of the root node provided a root node exists
 					if($IncludeRootNode = $this->Options->get('include_root_node')){
+						$this->RootNodePosition = ($IncludeRootNode===true || $IncludeRootNode=='prepend') ? 0 : $this->Count;
 						// an object spliced into the array must be place into an array in order to function as intended
 						// http://us3.php.net/manual/en/function.array-splice.php
-						array_splice($this->Items, (($IncludeRootNode===true || $IncludeRootNode=='prepend') ? 0 : $this->Count), 0, array($RootNode));
+						array_splice($this->Items, $this->RootNodePosition, 0, array($RootNode));
 						$this->Count++;
 					}
 				}
@@ -176,16 +179,18 @@ class Menubar extends PersistentObject
 					MenubarItem::cacheMenubarItem($this->ID, $Item);
 				}
 				$ItemOptions = false;
-				if($hasDepth || ($isCurrentOnly && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
-					$ItemOptions = array_merge($options, array(
-						'menu_depth' => $MenuDepth - 1,
-						'use_parent' => false
-					));
-					if($ItemOptions['fetch_parameters'] && $ItemOptions['fetch_parameters']['AttributeFilter']){
-						if(current(current($options['fetch_parameters']['AttributeFilter'])) == 'priority'){
-							unset($ItemOptions['fetch_parameters']['AttributeFilter']);
-							if(current(current($Item->sortArray())) == 'priority'){
-								$ItemOptions['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
+				if(!is_integer($this->RootNodePosition) || (is_integer($this->RootNodePosition) && $Key!==$this->RootNodePosition)){
+					if($hasDepth || ($isCurrentOnly && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
+						$ItemOptions = array_merge($options, array(
+							'menu_depth' => $MenuDepth - 1,
+							'use_parent' => false
+						));
+						if($ItemOptions['fetch_parameters'] && $ItemOptions['fetch_parameters']['AttributeFilter']){
+							if(current(current($options['fetch_parameters']['AttributeFilter'])) == 'priority'){
+								unset($ItemOptions['fetch_parameters']['AttributeFilter']);
+								if(current(current($Item->sortArray())) == 'priority'){
+									$ItemOptions['fetch_parameters']['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
+								}
 							}
 						}
 					}
