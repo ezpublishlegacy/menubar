@@ -197,7 +197,7 @@ class Menubar extends PersistentObject
 					}
 				}
 				$this->Items[$Key] = new MenubarItem(array(
-					'class' => $isRootNode ? 'menu-root' : false
+					'class' => $isRootNode ? 'menu-root' : ''
 				));
 				$this->Items[$Key]->processContentObjectTreeNode($Item, $ItemOptions);
 				if($this->Options->get('allow_menu_display')){
