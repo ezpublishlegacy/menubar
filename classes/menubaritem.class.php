@@ -36,7 +36,7 @@ class MenubarItem extends MenubarItemObject
 			$this->Menu = MenubarOperator::menubar($options, $object);
 			eZDebug::accumulatorStop('menubar_submenu');
 		}
-		if(Menubar::$Settings['CurrentNode'] && in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
+		if(!in_array('menu-root', $this->ClassList) && Menubar::$Settings['CurrentNode'] && in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
 			$this->addClass(($object->NodeID==Menubar::$Settings['CurrentNode']->NodeID) ? 'current' : 'current-parent');
 		}
 		return true;

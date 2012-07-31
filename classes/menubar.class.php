@@ -179,7 +179,8 @@ class Menubar extends PersistentObject
 					MenubarItem::cacheMenubarItem($this->ID, $Item);
 				}
 				$ItemOptions = false;
-				if(!is_integer($this->RootNodePosition) || (is_integer($this->RootNodePosition) && $Key!==$this->RootNodePosition)){
+				$isRootNode = is_integer($this->RootNodePosition) && $Key==$this->RootNodePosition;
+				if(!is_integer($this->RootNodePosition) || !$isRootNode){
 					if($hasDepth || ($isCurrentOnly && self::$Settings['CurrentNode'] && in_array($Item->NodeID, self::$Settings['CurrentNode']->pathArray()))){
 						$ItemOptions = array_merge($options, array(
 							'menu_depth' => $MenuDepth - 1,
@@ -195,7 +196,9 @@ class Menubar extends PersistentObject
 						}
 					}
 				}
-				$this->Items[$Key] = new MenubarItem();
+				$this->Items[$Key] = new MenubarItem(array(
+					'class' => $isRootNode ? 'menu-root' : false
+				));
 				$this->Items[$Key]->processContentObjectTreeNode($Item, $ItemOptions);
 				if($this->Options->get('allow_menu_display')){
 					$this->Items[$Key]->addClass('has-menu-display');
