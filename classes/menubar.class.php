@@ -134,6 +134,11 @@ class Menubar extends PersistentObject
 					$FetchOptions['SortBy'] = $isNameSplit ? array('name', true) : $NodeSortArray;
 				}
 
+				//assign priority filter for unspecified attribute filtering on priority based node sort arrays
+				if($NodeSortArray[0] == 'priority' && !isset($FetchOptions['AttributeFilter'])){
+					$FetchOptions['AttributeFilter'] = array(array('priority', 'between', array(1, 500)));
+				}
+
 				// fetch content object tree node objects
 				$this->Items = eZContentObjectTreeNode::subTreeByNodeID($FetchOptions, $options['root_node_id']);
 				$this->Count = count($this->Items);
