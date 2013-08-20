@@ -7,6 +7,7 @@ class MenubarItemObject extends PersistentObject
 
 	public $Link = '';
 	public $isExternal = false;
+	public $Target = '';
 
 	protected $Content = '';
 	protected $ClassList = array();
@@ -20,6 +21,7 @@ class MenubarItemObject extends PersistentObject
 					'content' => 'setContent',
 					'link' => 'Link',
 					'is_external' => 'isExternal',
+					'target' => 'Target',
 					'class' => 'addClass'
 				));
 			}
@@ -48,8 +50,8 @@ class MenubarItemObject extends PersistentObject
 		$ID = $object->remoteID();
 		if(!isset($GLOBALS['MenubarItemObjectCache'][$ID])){
 			eZDebug::accumulatorStart('process_treenode', 'menubar_total', "Process Content Object Tree Node");
-			$Result = array('content' => false, 'is_node_name' => false, 'link' => false, 'is_external' => false);
-			$Data = array('Content' => false, 'Link' => false, 'isExternal' => false, 'Class' => "node-id-$object->NodeID");
+			$Result = array('content' => false, 'is_node_name' => false, 'link' => false, 'is_external' => false, 'target' => false);
+			$Data = array('Content' => false, 'Link' => false, 'isExternal' => false, 'Target' => false, 'Class' => "node-id-$object->NodeID");
 
 			// "allow custom PHP class to process each type of class {enhancement}" here
 			// have the PHP class method return a value for content instead of overwritting
@@ -71,8 +73,11 @@ class MenubarItemObject extends PersistentObject
 
 				// poor handling: use an ini setting to determine the attribute to use
 				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				if(isset($DataMap['open_in_new_window']) && $DataMap['open_in_new_window']->DataInt){
+				if(isset($DataMap['is_external']) && $DataMap['is_external']->DataInt){
 					$Data['isExternal'] = $Result['is_external'] = true;
+				}
+				if(isset($DataMap['open_in_new_window']) && $DataMap['open_in_new_window']->DataInt){
+					$Data['Target'] = $Result['target'] = '_blank';
 				}
 				////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 			}
@@ -121,6 +126,9 @@ class MenubarItemObject extends PersistentObject
 		if($Result['is_external']){
 			$this->isExternal = $Data['isExternal'];
 		}
+		if($Result['target']){
+			$this->Target = $Data['Target'];
+		}
 		eZDebug::accumulatorStop('set_treenode');
 
 		return $Result;
@@ -154,6 +162,12 @@ class MenubarItemObject extends PersistentObject
 					'datatype'=>'boolean',
 					'default'=>false,
 					'required'=>true
+				),
+				'target'=>array(
+					'name'=>'Target',
+					'datatype'=>'string',
+					'default'=>'',
+					'required'=>true
 				)
 			),
 			'function_attributes' => array(
@@ -177,6 +191,10 @@ class MenubarItemObject extends PersistentObject
 				'is_external' => array(
 					'type' => 'boolean',
 					'default' => false
+				),
+				'target' => array(
+					'type' => 'string',
+					'default' => ''
 				),
 				'class' => array(
 					'type' => 'array | string',

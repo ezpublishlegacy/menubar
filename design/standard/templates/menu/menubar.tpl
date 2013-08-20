@@ -16,7 +16,7 @@
 <ul class="menu {$menubar.class}">
 {/if}
 	<li{if $item.class} class="{$item.class}"{/if}>
-		{if $item.link}<a href="{$item.link}"{if $item.is_external} class="external" rel="external" target="_blank"{/if}>{else}<span class="inactive">{/if}{$item.content}{if $item.link}</a>{else}</span>{/if}{if $item.delimiter}<span class="delimiter">{$item.delimiter}</span>{/if}
+		{if $item.link}<a href="{$item.link}"{if $item.is_external} class="external" rel="external"{/if}{if $item.target} target="{$item.target}"{/if}>{else}<span class="inactive">{/if}{$item.content}{if $item.link}</a>{else}</span>{/if}{if $item.delimiter}<span class="delimiter">{$item.delimiter}</span>{/if}
 		{if $item.menu}{$item.menu|menubar()}{/if}
 	</li>
 	{/foreach}
