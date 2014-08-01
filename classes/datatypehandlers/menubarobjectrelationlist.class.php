@@ -7,7 +7,8 @@ class MenubarObjectRelationList
 		$Content = current($attribute->content());
 		foreach($Content as $Key=>$Item){
 			if(!$Item['in_trash']){
-				$NodeList[] = eZContentObjectTreeNode::fetch($Item['node_id']);
+			    $myNode = eZContentObjectTreeNode::fetch($Item['node_id']);
+				if (is_object($myNode)) $NodeList[] = eZContentObjectTreeNode::fetch($Item['node_id']);
 			}
 		}
 		return $NodeList;
