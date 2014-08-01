@@ -180,7 +180,7 @@ class Menubar extends PersistentObject
 				if($isMultiple && $SplitPoint=$this->MenubarSplit->checkSplitPoint($Item, $Key)){
 					$this->SplitPoints[$Key] = $SplitPoint;
 				}
-				if($this->ID){
+				if($this->ID && is_object($Item)){
 					MenubarItem::cacheMenubarItem($this->ID, $Item);
 				}
 				$ItemOptions = false;
