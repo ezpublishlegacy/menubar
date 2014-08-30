@@ -39,6 +39,7 @@ class MenubarItem extends MenubarItemObject
 		if(!in_array('menu-root', $this->ClassList) && Menubar::$Settings['CurrentNode'] && in_array($object->NodeID, Menubar::$Settings['CurrentNode']->pathArray())){
 			$this->addClass(($object->NodeID==Menubar::$Settings['CurrentNode']->NodeID) ? 'current' : 'current-parent');
 		}
+		$this->addClass("class_".$object->ClassIdentifier);
 		return true;
 	}
 
