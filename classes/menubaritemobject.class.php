@@ -105,7 +105,15 @@ class MenubarItemObject extends PersistentObject
 
 			// check if "Content" has not already been set to a "true" string
 			if(!is_string($this->Content) || !$this->Content){
-				$Data['Content'] = $object->getName();
+				$content = $object->getName();
+				$DataMap = $object->attribute( 'data_map' );
+				if( $object->attribute( 'class_identifier' ) === 'faq_list' && isset( $DataMap['short_name'] ) ) {
+					$shortName = $DataMap['short_name']->attribute( 'content' );
+					if( empty( $shortName ) === false ) {
+						$content = $shortName;
+					}
+				}
+				$Data['Content'] = $content;
 				$Result['content'] = $Result['is_node_name'] = true;
 			}
 
